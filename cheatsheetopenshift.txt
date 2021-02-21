@@ -112,3 +112,13 @@ curl -X POST -k https://192.168.99.104:8443/apis/build.openshift.io/v1/namespace
 oc new-build https://gitlab.com/practical-openshift/hello-world.git#update-message // to start a new build from a branch of a git repository
 oc new-build https://gitlab.com/practical-openshift/labs.git --context-dir hello-world-go   // to start a new build from a subdirectory
 
+// build hooks - at this time only post commit hooks are available
+oc set build-hook bc/hello-world \
+	--post-commit \
+	--script="echo Hello from build hook" // to add build hook
+oc start-build bc/hello-world
+oc set build-hook bc/hello-world \
+	--post-commit \
+	--remove // to remove a build hook
+oc describe bc/hello-world // to verify whether the build hook has been correctly configured
+
