@@ -137,3 +137,30 @@ oc set volume dc/hello-world  --add   --configmap-name cm-volume   --mount-path 
 // specific providers use the OpenShift explain with k8s documentation on Volumes
 oc explain persistentvolume.spec
 oc explain persistentvolume.spec.vsphereVolume
+
+// advanced deployment config
+oc set triggers dc/hello-world // prints the triggers associated with a deployment config
+oc set triggers dc/hello-world --remove  --from-config // removes the config change trigger
+oc set triggers dc/hello-world --from-config // adds the config change trigger
+oc set triggers dc/hello-world --remove  --from-image hello-world:latest // removes the image change trigger
+oc set triggers dc/hello-world --from-image hello-world:latest -c hello-world // adding an image change trigger. -c is for container
+
+
+// configure pre-deployment hook
+oc new-app quay.io/practicalopenshift/hello-world
+oc rollout latest dc/hello-world
+oc set deployment-hook dc/hello-world --pre -c hello-world -- /bin/echo Hello from pre-deploy hook // adding the pre-deployment hook
+oc describe dc/hello-world // verify the hook has been added to deployment config.
+oc rollout latest dc/hello-world // you can watch it using oc get pods --watch
+oc get events  // to verify the hook in action
+
+// configure re-create strategy
+oc edit dc/hello-world // change the strategy.type to "Recreate" or download the yaml and make changes and apply the changes
+oc describe dc/hello-world // to verify if the strategy has changed.
+oc rollout latest dc/hello-world
+oc set deployment-hook dc/hello-world --mid -c hello-world -- /bin/echo Hello from mid-deploy hook
+oc rollout latest dc/hello-world
+
+// liveness probe
+oc set probe dc/hello-world --liveness --open-tcp=8080
+oc describe dc/hello-world
