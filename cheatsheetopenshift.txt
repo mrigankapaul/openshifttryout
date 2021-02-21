@@ -127,4 +127,13 @@ oc new-app https://gitlab.com/practical-openshift/labs.git  --context-dir s2i/ru
 oc new-app ruby~https://gitlab.com/practical-openshift/labs.git --context-dir s2i/ruby // explicitly specifying a builder image
 
 // volumes
+oc set volume dc/hello-world \
+	--add \
+	--type emptyDir \
+    --mount-path /empty-dir-demo
+oc create configmap cm-volume --from-literal file.txt="ConfigMap file contents" // create a config map
+oc set volume dc/hello-world  --add   --configmap-name cm-volume   --mount-path /cm-directory // mounting the config map to a valume
 
+// specific providers use the OpenShift explain with k8s documentation on Volumes
+oc explain persistentvolume.spec
+oc explain persistentvolume.spec.vsphereVolume
