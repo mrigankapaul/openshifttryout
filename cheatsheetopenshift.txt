@@ -1,0 +1,114 @@
+// Container basics
+docker build .
+docker build -t my-app:1.0 .
+docker kill <<container-id>>
+docker run -it -p 8080:8080 <<container-name>>
+FROM golang:alpine
+COPY src/hello-world.go /go/hello-world.go
+ENV MESSAGE "Welcome! You can change this message by editing the MESSAGE environment variable."
+RUN chgrp -R 0 /go && chmod -R g+rwX /go (Executes a command at container build time. After the command runs docker saves the result in the new image layer.)
+EXPOSE 8080
+CMD go run hello-world.go (Executes the command at run-time of the container.) // shell form
+CMD ["go", "run", "hello-world.go"] // exec form
+
+// Projects and User
+oc login
+minishift dashbaord
+oc logout
+oc login https://192.168.99.104:8443 --token=jKt55xqMXGWV1HuTtlgLskgOFjdvuLRIucnyBvdZnAg  // using token
+oc status
+oc project // prints the current project // Using project "myproject" on server "https://192.168.99.104:8443".
+oc new-project demo-project // create a new project
+oc projects // list of the projects
+oc project demo-project // to switch to a project
+
+
+// PODs
+oc explain pod.spec
+oc explain pod.spec.containers.env
+oc create -f pods/pod.yaml
+oc get pods
+oc rsh hello-world-pod // to shell into a POD
+oc delete pod hello-world-pod
+oc get pods --watch // different stages of POD lifecyle
+oc port-forward pod/hello-world-pod 8080 // port forward container port to host port
+oc describe pod/hello-world-pod
+
+// Deployment Config 
+oc new-app quay.io/practicalopenshift/hello-world // creating a deployment config using an image tag
+oc get deploymentconfigs
+oc describe dc/hello-world
+oc get svc
+oc get dc
+oc get istag // gets the istag
+oc delete svc/hello-world
+oc delete dc/hello-world
+oc delete all -l app=hello-world // to delete all resource types using a single command
+oc new-app quay.io/practicalopenshift/hello-world --name demo-app // specifying your own label
+oc new-app https://gitlab.com/practical-openshift/hello-world.git // deploy a new app from a git repository
+oc logs -f bc/hello-world // to view the logs of the build.
+oc get rc
+oc get -o yaml dc/hello-world
+oc rollout latest dc/hello-world // to rollout a new version of the image
+oc rollback dc/hello-world // rollback to previous version
+
+// Service and Routes
+oc expose --port 8080 pod/hello-world-pod // to create a service
+oc expose svc/hello-world-pod // to create a route 
+oc get -o yaml route/hello-world
+
+// config maps
+oc get -o yaml cm/message-map 
+oc create configmap message-map --from-literal MESSAGE="Hello From ConfigMap" // to create a config map using a string literal
+oc describe cm/message-map
+oc get cm
+oc set env dc/hello-world --from cm/message-map // to consume a config-map from the application using an env variable.
+oc -o yaml dc/hello-world // to see the usage of config map
+oc create configmap file-map-2 --from-file=MESSAGE=MESSAGE.txt // to create a config map from a file
+oc set env dc/hello-world --from cm/file-map-2
+oc create configmap pods-example --from-file pods // creating a config map from the directory
+
+// secrets
+oc create secret generic message-secret --from-literal MESSAGE="Secret Message" // or can use  --frorm-file	
+oc set env dc/hello-world --from secret/message-secret
+
+// imagestream and image stream tag
+oc get is
+os get istag
+oc describe istag/hello-world
+oc new-app myproject/hello-world // when the image stream has already been imported.
+oc tag quay.io/practicalopenshift/hello-world:update-message hello-world:update-message // adding more tags to an image
+docker build -t quay.io/$REGISTRY_USERNAME/private-repo . // To create a private image from a Dockefile
+docker login quay.io
+docker push quay.io/$REGISTRY_USERNAME/private-repo // pusing the image to remote repository
+// Deploying a private image to openshift
+oc create secret docker-registry \
+	demo-image-pull-secret \
+	--docker-server=$REGISTRY_HOST \
+	--docker-username=$REGISTRY_USERNAME \
+	--docker-password=$REGISTRY_PASSWORD \
+	--docker-email=$REGISTRY_EMAIL
+
+oc secrets link default demo-image-pull-secret --for=pull
+oc describe serviceaccount/default // to check if the default sa has the secret associated that was created above
+oc new-app quay.io/$REGISTRY_USERNAME/private-repo
+
+// build and build config
+oc new-build https://gitlab.com/practical-openshift/hello-world.git --allow-missing-images // to create an image from the source code synonymous to docker build
+oc get build
+oc get bc
+oc logs-f bc/hello-world 
+oc get -o yaml bc/hello-world
+oc start-build bc/hello-world // to start a build for an existing bc
+oc describe is/hello-world
+oc cancel-build bc/hello-world
+
+// to trigger the webhook manually in a minishift
+oc get -o yaml bc/hello-world // get the generic secret from the yaml file // u will find the secret in the triggers section of the output of the command
+export GENERIC_SECRET=OQfvF0yzGs7CmE1YvVw7
+oc describe bc/hello-world // from the webhook generic find the URL of the web hook
+curl -X POST -k https://192.168.99.104:8443/apis/build.openshift.io/v1/namespaces/myproject/buildconfigs/hello-world/webhooks/$GENERIC_SECRET/generic // to trigger the build manually
+
+oc new-build https://gitlab.com/practical-openshift/hello-world.git#update-message // to start a new build from a branch of a git repository
+oc new-build https://gitlab.com/practical-openshift/labs.git --context-dir hello-world-go   // to start a new build from a subdirectory
+
