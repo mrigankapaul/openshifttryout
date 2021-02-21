@@ -122,3 +122,9 @@ oc set build-hook bc/hello-world \
 	--remove // to remove a build hook
 oc describe bc/hello-world // to verify whether the build hook has been correctly configured
 
+// source to image (No Dockerfile)
+oc new-app https://gitlab.com/practical-openshift/labs.git  --context-dir s2i/ruby
+oc new-app ruby~https://gitlab.com/practical-openshift/labs.git --context-dir s2i/ruby // explicitly specifying a builder image
+
+// volumes
+
