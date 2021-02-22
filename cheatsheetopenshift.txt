@@ -174,3 +174,23 @@ oc describe hpa/hello-world
 oc get -o yaml hpa/hello-world
 
 // templates
+oc create -f template/hello-world-template.yaml // to upload the template to OpenShift from yaml file
+oc get template
+oc new-app hello-world // create an application based on the template uploaded
+oc get -o yaml templates/hello-world
+oc new-app hello-world -p MESSAGE="Hello from parameter override." // parameter override
+oc process hello-world // by default gives a JSON output
+oc process hello-world -o yaml // for processing a template with an output of YAML.
+oc process hello-world -o yaml  -p MESSAGE="Hello from oc process"
+oc process hello-world -o yaml \
+	-p MESSAGE="Hello from oc process" \
+	> processed-objects.yaml
+head processed-objects.yaml
+oc create -f processed-objects.yaml
+oc process -o yaml -f template/hello-world-template.yaml // to use the templates offline
+oc new-app -f template/hello-world-template.yaml -p MESSAGE="Hello from oc new-app with a file"
+oc get -o yaml dc,is,bc,svc,route \
+  --export \
+  > test-template.yaml
+oc get template -n openshift // built in template
+
