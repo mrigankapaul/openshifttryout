@@ -164,3 +164,13 @@ oc rollout latest dc/hello-world
 // liveness probe
 oc set probe dc/hello-world --liveness --open-tcp=8080
 oc describe dc/hello-world
+
+// scaling 
+oc scale dc/hello-world --replicas=3 // manually scaling your application
+oc scale dc/hello-world --replicas=1 // manually scaling down application
+oc autoscale dc/hello-world --min 1 --max 10 --cpu-percent=80
+oc get hpa
+oc describe hpa/hello-world
+oc get -o yaml hpa/hello-world
+
+// templates
