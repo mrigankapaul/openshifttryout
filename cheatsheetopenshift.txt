@@ -1,3 +1,9 @@
+// Installation
+minishift --version // to verify the Installation
+minishift config set vm-driver virtualbox
+minishift start
+eval $(minishift oc-env)
+// openshift playground
 // Container basics
 docker build .
 docker build -t my-app:1.0 .
@@ -11,8 +17,9 @@ EXPOSE 8080
 CMD go run hello-world.go (Executes the command at run-time of the container.) // shell form
 CMD ["go", "run", "hello-world.go"] // exec form
 
-// Projects and User
-oc login
+// Projects and User // OpenShift uses projects to divide up application into separate group. OpenShift uses projects to gurantee resource availability for an application using quotas.(CPUs, RAM and persistence)
+oc login // username and password and token authentication
+oc login <<portal-url>> --token=<<token>
 minishift dashbaord
 oc logout
 oc login https://192.168.99.104:8443 --token=jKt55xqMXGWV1HuTtlgLskgOFjdvuLRIucnyBvdZnAg  // using token
@@ -21,9 +28,11 @@ oc project // prints the current project // Using project "myproject" on server 
 oc new-project demo-project // create a new project
 oc projects // list of the projects
 oc project demo-project // to switch to a project
+oc status // to check the status of openshift
 
 
 // PODs
+oc explain pod
 oc explain pod.spec
 oc explain pod.spec.containers.env
 oc create -f pods/pod.yaml
@@ -34,7 +43,8 @@ oc get pods --watch // different stages of POD lifecyle
 oc port-forward pod/hello-world-pod 8080 // port forward container port to host port
 oc describe pod/hello-world-pod
 
-// Deployment Config 
+// Deployment Config - analogous to one microservice. When you create a dc using new-app, 1 dc, 1 svc, 1 istag and 1 pod is created. 
+oc new-app quay.io/practicalopenshift/hello-world --as-deployment-config // for version 4.6.19 
 oc new-app quay.io/practicalopenshift/hello-world // creating a deployment config using an image tag
 oc get deploymentconfigs
 oc describe dc/hello-world
@@ -44,10 +54,10 @@ oc get istag // gets the istag
 oc delete svc/hello-world
 oc delete dc/hello-world
 oc delete all -l app=hello-world // to delete all resource types using a single command
-oc new-app quay.io/practicalopenshift/hello-world --name demo-app // specifying your own label
-oc new-app https://gitlab.com/practical-openshift/hello-world.git // deploy a new app from a git repository
+oc new-app quay.io/practicalopenshift/hello-world --as-deployment-config --name demo-app // specifying your own label
+oc new-app https://gitlab.com/practical-openshift/hello-world.git --as-deployment-config// deploy a new app from a git repository
 oc logs -f bc/hello-world // to view the logs of the build.
-oc get rc
+oc get rc // Actual job of running the pods is with the rc.
 oc get -o yaml dc/hello-world
 oc rollout latest dc/hello-world // to rollout a new version of the image
 oc rollback dc/hello-world // rollback to previous version
@@ -55,20 +65,28 @@ oc rollback dc/hello-world // rollback to previous version
 // Service and Routes
 oc expose --port 8080 pod/hello-world-pod // to create a service
 oc expose svc/hello-world-pod // to create a route 
+wget -qO- 172......:8080
+env // from rsh inside the pod, you can get the list env variables
 oc get -o yaml route/hello-world
 
-// config maps
+// Important Route Definition 
+route.spec.host
+route.spec.port.targetPort
+route.spec.to
+// investigate setting up Routes with certifcates
+
+// config maps // from command line arguments, files with key value pairs, directories with files. 1MB storage limit.
 oc get -o yaml cm/message-map 
 oc create configmap message-map --from-literal MESSAGE="Hello From ConfigMap" // to create a config map using a string literal
 oc describe cm/message-map
 oc get cm
 oc set env dc/hello-world --from cm/message-map // to consume a config-map from the application using an env variable.
-oc -o yaml dc/hello-world // to see the usage of config map
+oc get -o yaml dc/hello-world // to see the usage of config map
 oc create configmap file-map-2 --from-file=MESSAGE=MESSAGE.txt // to create a config map from a file
 oc set env dc/hello-world --from cm/file-map-2
 oc create configmap pods-example --from-file pods // creating a config map from the directory
 
-// secrets
+// secrets // other type of secrets are k8s service account // Registry Authentication // Simple Auth Types // Basic Auth, SSH Key, TLS Auth
 oc create secret generic message-secret --from-literal MESSAGE="Secret Message" // or can use  --frorm-file	
 oc set env dc/hello-world --from secret/message-secret
 
@@ -76,7 +94,8 @@ oc set env dc/hello-world --from secret/message-secret
 oc get is
 os get istag
 oc describe istag/hello-world
-oc new-app myproject/hello-world // when the image stream has already been imported.
+oc import-image --confirm quay.io/practicalopenshift/hello-world // importing an image stream
+oc new-app myproject/hello-world --as-deployment-config // when the image stream has already been imported.
 oc tag quay.io/practicalopenshift/hello-world:update-message hello-world:update-message // adding more tags to an image
 docker build -t quay.io/$REGISTRY_USERNAME/private-repo . // To create a private image from a Dockefile
 docker login quay.io
@@ -89,33 +108,36 @@ oc create secret docker-registry \
 	--docker-password=$REGISTRY_PASSWORD \
 	--docker-email=$REGISTRY_EMAIL
 
-oc secrets link default demo-image-pull-secret --for=pull
+oc secrets link default demo-image-pull-secret --for=pull // linking the secret for pulling the image
 oc describe serviceaccount/default // to check if the default sa has the secret associated that was created above
-oc new-app quay.io/$REGISTRY_USERNAME/private-repo
+oc new-app quay.io/$REGISTRY_USERNAME/private-repo --as-deployment-config
+oc secrets unlink default demo-image-pull-secret
 
 // build and build config
-oc new-build https://gitlab.com/practical-openshift/hello-world.git --allow-missing-images // to create an image from the source code synonymous to docker build
+oc new-build https://gitlab.com/mrigankapaul/hello-world.git --allow-missing-images // to create an image from the source code synonymous to docker build
 oc get build
 oc get bc
-oc logs-f bc/hello-world 
+oc logs-f pods/hello-world-1-build
+oc logs -f bc/hello-world // logs command works also with bc
 oc get -o yaml bc/hello-world
 oc start-build bc/hello-world // to start a build for an existing bc
-oc describe is/hello-world
+oc describe is/hello-world //  You can check the new images being built from here 
 oc cancel-build bc/hello-world
 
 // to trigger the webhook manually in a minishift
 oc get -o yaml bc/hello-world // get the generic secret from the yaml file // u will find the secret in the triggers section of the output of the command
-export GENERIC_SECRET=OQfvF0yzGs7CmE1YvVw7
+export GENERIC_SECRET=oS1DeNCZfruS-X81gHNK
 oc describe bc/hello-world // from the webhook generic find the URL of the web hook
 curl -X POST -k https://192.168.99.104:8443/apis/build.openshift.io/v1/namespaces/myproject/buildconfigs/hello-world/webhooks/$GENERIC_SECRET/generic // to trigger the build manually
 
-oc new-build https://gitlab.com/practical-openshift/hello-world.git#update-message // to start a new build from a branch of a git repository
+oc new-build https://gitlab.com/mrigankapaul/hello-world.git#update-message // to start a new build from a branch of a git repository
 oc new-build https://gitlab.com/practical-openshift/labs.git --context-dir hello-world-go   // to start a new build from a subdirectory
 
 // build hooks - at this time only post commit hooks are available
 oc set build-hook bc/hello-world \
 	--post-commit \
-	--script="echo Hello from build hook" // to add build hook
+	--script="echo Hello from build hook" // to add build hook. If you add tests to post commit hook, the tests need to pass for the build to be succesful
+oc describe bc/hello-world // to check whether the build hook has been configured
 oc start-build bc/hello-world
 oc set build-hook bc/hello-world \
 	--post-commit \
@@ -123,8 +145,16 @@ oc set build-hook bc/hello-world \
 oc describe bc/hello-world // to verify whether the build hook has been correctly configured
 
 // source to image (No Dockerfile)
+
+Dockerfile Instructions		S2I script
+-----------------------     ----------
+RUN 						Assemble
+CMD							RUN
+
 oc new-app https://gitlab.com/practical-openshift/labs.git  --context-dir s2i/ruby
 oc new-app ruby~https://gitlab.com/practical-openshift/labs.git --context-dir s2i/ruby // explicitly specifying a builder image
+
+If you need to customize s2i script you can put a customized script to .s2i/bin
 
 // volumes
 oc set volume dc/hello-world \
@@ -138,13 +168,21 @@ oc set volume dc/hello-world  --add   --configmap-name cm-volume   --mount-path 
 oc explain persistentvolume.spec
 oc explain persistentvolume.spec.vsphereVolume
 
-// advanced deployment config
+// advanced deployment config  - Deployment Trigger - ImageChange, ConfigChane - Any change to the pod template - (example - Any changes for volume or imagestream tag)
 oc set triggers dc/hello-world // prints the triggers associated with a deployment config
 oc set triggers dc/hello-world --remove  --from-config // removes the config change trigger
 oc set triggers dc/hello-world --from-config // adds the config change trigger
 oc set triggers dc/hello-world --remove  --from-image hello-world:latest // removes the image change trigger
 oc set triggers dc/hello-world --from-image hello-world:latest -c hello-world // adding an image change trigger. -c is for container
 
+
+
+// Rolling strategy - Concurrent version
+// Recreate strategy - Stop Old Version and start new version
+// Custom Strategy
+
+
+// TO START HERE /// DEPLOYMENT STRATGIES
 
 // configure pre-deployment hook
 oc new-app quay.io/practicalopenshift/hello-world
@@ -164,7 +202,7 @@ oc rollout latest dc/hello-world
 // liveness probe
 oc set probe dc/hello-world --liveness --open-tcp=8080
 oc describe dc/hello-world
-
+ 
 // scaling 
 oc scale dc/hello-world --replicas=3 // manually scaling your application
 oc scale dc/hello-world --replicas=1 // manually scaling down application
@@ -173,12 +211,22 @@ oc get hpa
 oc describe hpa/hello-world
 oc get -o yaml hpa/hello-world
 
+# of PODs
+Current Usage Value - Add together the current usage for the POD 1000 Mi - 1CPU
+Desired Compute Value - # of PODs * Target CPU (AutoScalet Definition) * Request CPU per POD ( POD Definition)
+Usage Ratio = Total Current usage / Total Desired Usage
+New PODs = Current POD * Usage Ratio
+
+
+
 // templates
 oc create -f template/hello-world-template.yaml // to upload the template to OpenShift from yaml file
 oc get template
 oc new-app hello-world // create an application based on the template uploaded
 oc get -o yaml templates/hello-world
 oc new-app hello-world -p MESSAGE="Hello from parameter override." // parameter override
+
+// processing the template is just a dry run
 oc process hello-world // by default gives a JSON output
 oc process hello-world -o yaml // for processing a template with an output of YAML.
 oc process hello-world -o yaml  -p MESSAGE="Hello from oc process"
